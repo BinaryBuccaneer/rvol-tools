@@ -713,14 +713,15 @@ function paintRVOLBadges() {
     if (b.style.left !== left) b.style.left = left;
     const txt = Math.round(v * 100) + "%";
     if (b.textContent !== txt) b.textContent = txt;
-    // Deliberately DIRECTION-FREE (a green/red/brightness scheme was tried
-    // and scrapped as too convoluted): the row already shows direction twice,
-    // via TV's price colors and the sorter's left bar. The badge answers one
-    // question only, how heavy is the volume. Gold = at or above a full
-    // average day (>= 100%), grey = below. Gold reads "heat", not up/down.
-    const hot = v >= 1;
-    b.style.background = hot ? `rgba(${HL.amber},.18)` : "rgba(154,161,173,.15)";
-    b.style.color = hot ? "#f2c14e" : "#bcc3cf";
+    // ONE neutral color, deliberately signal-free. Direction schemes and a
+    // gold-at-100% tier were both tried and scrapped: the row already shows
+    // direction (TV's price colors + the sorter's left bar), and a fixed
+    // 100% threshold mostly trips late in the session when the move is
+    // already made, so any color "signal" here just misleads. The badge is
+    // pure information; the number speaks, the reader decides. Steel blue:
+    // readable on TV's dark rows, and cool enough to imply nothing.
+    b.style.background = "rgba(125,155,195,.16)";
+    b.style.color = "#a5bcd9";
   }
 }
 

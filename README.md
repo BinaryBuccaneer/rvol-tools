@@ -29,14 +29,12 @@ as the session moves.
 
 **2. RVOL badge (TradingView)**
 
-A small tag next to each symbol showing its RVOL. Two colors, nothing clever:
-
-- Gold: at or above a full average day's volume (100%+)
-- Grey: below it
-
-The badge stays out of the up/down business on purpose. The row already shows
-direction twice (the price columns, and the sorter's colored left bar), so the
-badge answers exactly one question: how heavy is the volume today?
+A small tag next to each symbol showing its RVOL. One neutral color, no
+signals. The row already shows direction (the price columns, and the sorter's
+colored left bar), and RVOL builds up through the session anyway, so a badge
+that changes color at some threshold would mostly light up late in the day,
+after the move is made. The badge just states the number; what to do with it
+is your call.
 
 Works on its own, no sort needs to be on.
 
