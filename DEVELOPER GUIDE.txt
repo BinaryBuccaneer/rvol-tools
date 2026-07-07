@@ -204,11 +204,11 @@ volume from the scanner, which is one cheap POST.
 RVOL BADGE ON EACH ROW (paintRVOLBadges, key rvolBadges, TV-only, default off):
   TV has no RVOL watchlist column, so we paint one: a tiny badge showing each
   row's RVOL as a % (TV convention, 100% = an average full day's volume already
-  traded). Color = DIRECTION, brightness = VOLUME (a hard grey-below-100%
-  cliff hid real moves, e.g. down 5% on 83% volume): with |Chg%| >= HL_MOVE,
-  green up / red down in three brightness tiers (RVOL >= 150% bright, >= 100%
-  normal, >= 50% dimmed); RVOL >= 100% but flat = amber (churn); under 50%,
-  or flat on light volume, = grey. Placement: just RIGHT of the
+  traded). Coloring is deliberately DIRECTION-FREE, two tiers only: gold =
+  RVOL >= 100%, grey = below. A green/red/brightness scheme was built and
+  scrapped as too convoluted: the row already shows direction twice (TV's
+  price colors + the sorter's left bar), so the badge only answers "how heavy
+  is the volume". Placement: just RIGHT of the
   symbol NAME, vertically centered, so it never overlaps the price / Chg%
   columns. The anchor is measured, not selector-based (tvBadgeAnchor): find
   the name leaf (innermost element whose text equals the ticker from

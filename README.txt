@@ -51,11 +51,11 @@ The watchlist sorter
   them as you scroll, so sorting a long list would fight TV's own redraw and
   tear the layout. Keep the list you sort at 50 or fewer.
 - RVOL BADGE (TradingView only): an optional tiny badge next to each symbol's
-  name showing its RVOL as a %. Color is the direction, brightness is the
-  volume: green = up, red = down (moves of 1.5%+), brighter as RVOL climbs
-  (150%+ bright, ~100% normal, 50-100% dimmed but still colored); amber =
-  a full average day's volume but the price going nowhere; grey = under half
-  an average day, too quiet to mean much. Works on its own, no sort needed.
+  name showing its RVOL as a %. Two colors: gold = at or above a full average
+  day's volume (100%+), grey = below it. No up/down coloring on purpose, the
+  row already shows direction through the price columns and the sorter's left
+  bar; the badge only says how heavy the volume is. Works on its own, no sort
+  needs to be on.
 - Give it a few seconds after the page loads to fetch volume the first time.
 - "Sorter state" in the popup prints what the sorter sees on the current tab
   (handy if it seems to be doing nothing, e.g. the list is over the 50 cap).

@@ -713,36 +713,14 @@ function paintRVOLBadges() {
     if (b.style.left !== left) b.style.left = left;
     const txt = Math.round(v * 100) + "%";
     if (b.textContent !== txt) b.textContent = txt;
-    // Color = DIRECTION, brightness = VOLUME. The old version was a cliff:
-    // grey below 100% RVOL whatever the move, so a stock dumping 5% on 83%
-    // volume looked identical to a dead one at 14%. Now direction shows from
-    // half an average day upward, and the badge gets brighter the heavier
-    // the volume:
-    //   move >= +-HL_MOVE:  green up / red down
-    //     RVOL >= 150%  bright   (heavy and moving, the ones that matter)
-    //     RVOL >= 100%  normal
-    //     RVOL >=  50%  dimmed   (real participation, not a full day yet)
-    //   heavy (>= 100%) but flat -> amber (churn/absorption)
-    //   RVOL < 50%, or flat on light volume -> grey (too quiet to mean much)
-    const cell2 = pctCellOf(w);
-    const chg = cell2 ? parsePct(cell2.textContent) : null;
-    let bg = "rgba(154,161,173,.16)", fg = "#b7bdc9";
-    if (chg != null && v >= 0.5 && Math.abs(chg) >= HL_MOVE) {
-      const rgb = chg > 0 ? HL.green : HL.red;
-      if (v >= 1.5) {
-        bg = `rgba(${rgb},.26)`; fg = chg > 0 ? "#4df09b" : "#ff8291";
-      } else if (v >= 1) {
-        bg = `rgba(${rgb},.17)`; fg = chg > 0 ? "#3bd287" : "#f0707f";
-      } else {
-        bg = `rgba(${rgb},.1)`; fg = chg > 0 ? "#3f9e77" : "#c26872";
-      }
-    } else if (v >= 1 && chg != null) {
-      bg = `rgba(${HL.amber},.16)`; fg = "#f2c14e";
-    } else if (v >= 1) {
-      bg = "rgba(154,161,173,.22)"; fg = "#d5dae3"; // heavy, direction unknown
-    }
-    b.style.background = bg;
-    b.style.color = fg;
+    // Deliberately DIRECTION-FREE (a green/red/brightness scheme was tried
+    // and scrapped as too convoluted): the row already shows direction twice,
+    // via TV's price colors and the sorter's left bar. The badge answers one
+    // question only, how heavy is the volume. Gold = at or above a full
+    // average day (>= 100%), grey = below. Gold reads "heat", not up/down.
+    const hot = v >= 1;
+    b.style.background = hot ? `rgba(${HL.amber},.18)` : "rgba(154,161,173,.15)";
+    b.style.color = hot ? "#f2c14e" : "#bcc3cf";
   }
 }
 
