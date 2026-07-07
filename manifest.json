@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "RVOL Tools",
+  "version": "1.4.3",
+  "description": "Live market tools: keep your TradingView or Kite watchlist sorted by RVOL or % change, an RVOL badge on every row, a floating Top-RVOL leaderboard, and a Market Pulse breadth chip.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://kite.zerodha.com/*",
+    "https://in.tradingview.com/*",
+    "https://www.tradingview.com/*",
+    "https://scanner.tradingview.com/*",
+    "https://query1.finance.yahoo.com/*",
+    "https://query2.finance.yahoo.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "action": {
+    "default_title": "RVOL Tools",
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://kite.zerodha.com/*",
+        "https://in.tradingview.com/*",
+        "https://www.tradingview.com/*"
+      ],
+      "js": ["content/watchlist-sort.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/rvol-board.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/market-pulse.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://in.tradingview.com/*",
+        "https://www.tradingview.com/*"
+      ],
+      "js": ["content/tv-symbol.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

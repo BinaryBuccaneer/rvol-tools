@@ -1,0 +1,430 @@
+RVOL Tools - Developer Guide
+============================
+
+A small Manifest V3 browser extension (Chrome / Edge / Brave) with three live
+market tools for NSE (India) equities:
+
+  1. Watchlist Sorter   - sorts your TradingView / Zerodha Kite watchlist by RVOL.
+  2. Top RVOL Board     - a floating leaderboard of a symbol list ranked by RVOL.
+  3. Market Pulse       - a floating breadth chip (advance/decline + thrust) with
+                          a live intraday ADV/DEC graph.
+
+All data is public and read live. There is no backend and no account: the
+extension's background worker calls two public APIs (TradingView's scanner and
+Yahoo Finance) and everything is computed in the browser.
+
+This document explains how every piece works so the code can be modified safely.
+
+
+-------------------------------------------------------------------------------
+1. INSTALL / RELOAD
+-------------------------------------------------------------------------------
+Install:
+  1. Keep this folder somewhere permanent (the browser loads from it).
+  2. chrome://extensions  (or edge://extensions), enable Developer mode.
+  3. "Load unpacked" -> select this folder (the one with manifest.json).
+
+After editing code:
+  - Background worker or popup change: click the reload icon on the card.
+  - Content-script change (anything in content/): reload the card AND refresh the
+    page the script runs on.
+
+
+-------------------------------------------------------------------------------
+2. FILE STRUCTURE
+-------------------------------------------------------------------------------
+manifest.json
+    MV3 manifest. Permissions: "storage", "tabs". host_permissions cover the two
+    data origins (scanner.tradingview.com, query1/query2.finance.yahoo.com) plus
+    the sites the sorter runs on. Registers the content scripts (see below).
+
+background/service-worker.js
+    The only place cross-origin fetches happen (content scripts can't, due to
+    CORS). A single message router: HANDLERS[cmd](payload) -> {ok, data}. Holds
+    all the data logic (RVOL, breadth, watchlist reading, chart switching).
+
+content/watchlist-sort.js   (runs on kite.zerodha.com + tradingview.com)
+    Feature 1. Reorders the live watchlist in place.
+
+content/rvol-board.js       (runs on <all_urls>)
+    Feature 2. The floating Top-RVOL leaderboard panel.
+
+content/market-pulse.js     (runs on <all_urls>)
+    Feature 3. The floating Market Pulse breadth chip.
+
+content/tv-symbol.js        (runs on tradingview.com)
+    Receives "setChartSymbol" messages and switches the TradingView chart symbol
+    by typing into TV's symbol search. Used by the board's click-to-chart.
+
+popup/popup.html / popup.js / popup.css
+    The toolbar popup: all settings. Storage-driven, so flipping a control takes
+    effect on the open tab with no reload (content scripts watch storage).
+
+README.txt
+    End-user install + usage. This file is the developer counterpart.
+
+
+-------------------------------------------------------------------------------
+3. DATA SOURCES  (where the numbers come from)
+-------------------------------------------------------------------------------
+Everything is fetched by background/service-worker.js.
+
+A) TradingView scanner  (live intraday values)
+   URL:  https://scanner.tradingview.com/india/scan   (POST)
+   Public, CORS-open. Body: { symbols: { tickers: ["NSE:SYM", ...], query:
+   { types: [] } }, columns: [ ... ] }. Keyed in the response by the full
+   "NSE:SYM" string.
+     - Column "volume": today's cumulative volume so far (for RVOL numerator).
+       Sent with Content-Type application/json.
+     - Column "change": today's % change (for the board's Chg% and for Market
+       Pulse breadth). Sent with Content-Type text/plain;charset=UTF-8, which
+       avoids the CORS preflight (an application/json POST would be preflighted;
+       text/plain is a "simple request").
+   Region is chosen by exchange: NSE/BSE -> india, US exchanges -> america
+   (scannerRegion()). This extension only uses NSE.
+
+B) Yahoo Finance chart  (historical volume + intraday path)
+   URL:  https://query1.finance.yahoo.com/v8/finance/chart/<SYMBOL>   (GET)
+   Symbol mapping (yahooSymbol()): NSE:X -> X.NS, BSE:X -> X.BO, US -> bare.
+     - ?range=3mo&interval=1d : daily bars, used for the 20-day AVERAGE volume
+       (RVOL denominator). We drop the latest (partial "today") bar and average
+       the prior N closed days. Cached per symbol per day.
+     - ?range=1d&interval=5m  : today's 5-minute bars, used ONLY to backfill the
+       Market Pulse ADV/DEC graph. meta.chartPreviousClose gives the prior close,
+       so each bar becomes a cumulative day % change.
+
+Off-market hours: the scanner returns the last session's close values, and the
+Yahoo intraday call returns the last completed session's bars. So off-market the
+tools show the last session and don't move.
+
+
+-------------------------------------------------------------------------------
+4. CORE DEFINITIONS
+-------------------------------------------------------------------------------
+RVOL (relative volume):
+    RVOL = (today's cumulative volume so far)  /  (average daily volume over the
+    prior N closed days),  N = 20 by default (RVOL_LOOKBACK / lookback).
+    Displayed as a percent (RVOL * 100): 100% = a full average day already
+    traded, 500% = five times an average day. The 20-day average excludes today
+    and is cached per symbol per day, so during a session only the numerator
+    (today's live volume) is re-fetched.
+
+Breadth / thrust (Market Pulse), per the loaded list, from "change":
+    advancing   = names with change >  +0.1%
+    declining   = names with change <  -0.1%
+    up   >=4.5% = names with change >= +4.5%   (STRONG threshold)
+    down >=4.5% = names with change <= -4.5%
+    breadth %   = advancing / (counted names) * 100
+    thrust      = (up >=4.5%) / max(down >=4.5%, 1)
+    The 4.5% tail is the "thrust" signal (mirrors the MBI "4.5R" breadth column):
+    it tells apart a broad grind from a day with real directional pushes.
+
+    Posture (headline word) is an ordered decision tree on those:
+      RISK-ON      breadth >= 60 and avg move > 0.3 and up4.5 >= down4.5
+                   OR strong thrust and breadth >= 50
+      SELECTIVE    strong thrust but thin breadth (a stock-picker's day)
+      RISK-OFF     breadth <= 35 and avg move < -0.4
+      WEAK         breadth < 45
+      WAIT & WATCH otherwise
+      GAUGING      fewer than 5 names priced yet
+      ("strong thrust" = up4.5 >= max(2, 10% of names) and up4.5 >= 2x down4.5.)
+    The gauge needle (0..100) is 0.40*breadth + 0.25*avgScore + 0.35*thrustScore,
+    so pockets of strength light it up even when breadth is only average.
+
+
+-------------------------------------------------------------------------------
+5. FEATURE 1 - WATCHLIST SORTER  (content/watchlist-sort.js)
+-------------------------------------------------------------------------------
+Sorts the live watchlist so the heaviest RVOL names float to the top, without
+altering the watchlist's contents. Fully reversible: turn it off and the original
+order returns.
+
+Shared data step (both sites), every 5 seconds:
+  1. collectSymbols() reads the visible watchlist rows and builds a list of
+     EXCHANGE:TICKER strings (Kite rows -> "NSE:" + the row's symbol name; TV rows
+     -> the row's data-symbol-full attribute).
+  2. It messages the background worker: fetchRVOL({ symbols, lookback: 20 }),
+     which returns a map EXCHANGE:TICKER -> RVOL number (see section 3/4 for how
+     RVOL is computed). That map is stored in rvolMap.
+  3. Each site's apply function then RANKS the rows by rvolMap value (descending;
+     any row with no RVOL value sinks to the bottom) and repositions them.
+This is the same for both sites. What differs is HOW rows are repositioned,
+because the two watchlists are built completely differently.
+
+KITE mechanism (applyKiteSort) - CSS `order`, nothing moves in the DOM:
+  Kite renders the whole marketwatch as an ordinary (non-virtualized) list: every
+  row is a real element already in the page. So we do NOT move any node. Instead:
+    - The list container is switched to display:flex, flex-direction:column, set
+      with !important (Kite's own stylesheet otherwise overrides a plain inline
+      value and `order` silently does nothing).
+    - Each row is given a CSS `order` integer equal to its RVOL rank (0 = heaviest
+      at the top). The browser lays flex children out by `order`, so the rows
+      visually reorder while every node stays exactly where it was in the DOM.
+  Because no node is moved or removed, Kite's own live price updates keep flowing
+  into each row and nothing flickers. A MutationObserver (150ms debounce) re-runs
+  the ranking whenever Kite mutates the list. Kite mounts lists 1/2/3 at once and
+  hides the inactive ones; we sort every container that is NOT display:none and
+  never touch a hidden one (touching a hidden list is what once corrupted Kite's
+  panel). Turning the feature off clears every `order` and removes the forced
+  flex, restoring Kite's original order exactly.
+
+TRADINGVIEW mechanism (applyTVSort) - rewrite each row's absolute `top`:
+  TradingView VIRTUALIZES the watchlist: it never builds an element for every
+  symbol, only for the ~30 that fit on screen, and it RECYCLES those elements as
+  you scroll (each row is an absolutely-positioned wrapper placed at top:Npx).
+  CSS `order` is useless here (the rows aren't flex children), so instead we:
+    - Read every mounted row wrapper and its current `top`.
+    - Compute a clean, evenly-spaced layout from scratch: anchor at the topmost
+      row's `top`, then step down by one row height per rank. (We recompute the
+      slots each cycle rather than reuse TV's live `top`s, because TV resets a
+      row's `top` on every price tick, which would corrupt reused slots into gaps
+      and overlaps.)
+    - Assign each row the `top` of its RVOL-rank slot, so rows glide into
+      heaviest-to-lightest order (TV animates `top`, so it slides smoothly).
+  Guardrails specific to TV's virtualization:
+    - Only lists of TV_MAX_LIST (=50) symbols or fewer are sorted. tvTotalRows()
+      estimates the true list size from the scroller's full virtual height /
+      row height; above the cap the list is left completely untouched, because on
+      a long list we can only see the on-screen slice and reordering it fights
+      TV's recycler (rows tear / overlap / leave gaps).
+    - It PAUSES while you scroll (a scroll/wheel listener sets a flag) and
+      re-sorts 250ms after you stop, so it never fights TV mid-recycle.
+    - It re-applies every 300ms so the order follows live prices. Each row's
+      original `top` is remembered (tvOriginalTop) and restored when you turn the
+      feature off, returning your manual order.
+  On TV, when sorting by RVOL the top half of the list by RVOL also gets a colored
+  left-bar (a box-shadow inset, which never affects layout: green up / amber flat
+  / red down), fading down the rank, the same idea as the "Strong Start" Pine
+  table. box-shadow is fully reversible and can't shift a row.
+
+The RVOL data itself is polled every 5s (startRVOLPolling -> refreshRVOL). Since
+the 20-day average is cached per day, each poll only re-fetches today's live
+volume from the scanner, which is one cheap POST.
+
+RVOL BADGE ON EACH ROW (paintRVOLBadges, key rvolBadges, TV-only, default off):
+  TV has no RVOL watchlist column, so we paint one: a tiny badge showing each
+  row's RVOL as a % (TV convention, 100% = an average full day's volume already
+  traded). Color = volume AND direction, same convention as the highlighter
+  (green alone would scream "up" on a stock dumping on heavy volume): RVOL >=
+  100% colors by the row's Chg% (green up / red down / amber flat within
+  +-HL_MOVE), below 100% is grey whatever the move. Placement: just RIGHT of the
+  symbol NAME, vertically centered, so it never overlaps the price / Chg%
+  columns. The anchor is measured, not selector-based (tvBadgeAnchor): find
+  the name leaf (innermost element whose text equals the ticker from
+  data-symbol-full), then extend the edge over any leaf that STARTS within
+  22px of it. That swallows the off-market status dot / flag sitting right
+  after the name without relying on TV class names, and can never reach the
+  price columns (a "rightmost leaf in the left half" attempt did exactly that:
+  long prices cross the row midpoint).
+  The badge is a child of the row WRAPPER, absolutely positioned;
+  it is NEVER inserted into TV's own row markup, because React owns those nodes
+  and a foreign child there can crash TV's renderer when a row recycles.
+  The toggle works on its own: it starts the same RVOL polling the sorter uses,
+  so no sort needs to be on. A 1s repaint follows row recycling as you scroll
+  (virtualization is a non-issue: badges only need to exist for mounted rows).
+
+NOTE, removed feature (v1.4.0): "full-list mode" (rewriting the watchlist's
+SAVED order every 5s through TV's watchlist REST API, POST
+/api/v1/symbols_list/custom/<id>/replace/) was built, worked, and was removed
+before publishing: TV does NOT re-render an open panel when the saved order
+changes server-side (it reads saved order only on list load), which forced a
+second on-screen sorting layer plus row-click interception, too much machinery
+for a shareable tool. The API knowledge is kept in the project notes if it's
+ever wanted again. The popup silently deletes its leftover storage keys
+(fullTV, svOrig:<listId>).
+
+Storage keys the popup uses: sortTV / rvolTV, sortKite / rvolKite (one
+Off / %-change / RVOL choice per site, written as two booleans, default all
+off; if both were somehow on, RVOL wins), rvolBadges (default off).
+
+Diagnostic commands (message the content script): captureWatchlist,
+debugKiteSort, debugSorter (the popup's "Sorter state" button: toggles, metric,
+list size vs the cap, mounted rows, RVOL values known).
+Read-only; used to confirm the site's DOM if selectors ever change.
+
+Selectors that matter (update here if a site changes its DOM):
+  Kite row:  .item-wrapper.draggable-item      symbol name: .symbol .name
+  Kite %:    .change-percentage
+  TV row:    an absolutely-positioned wrapper around [data-symbol-full]
+  Percent cell: matched generically by PCT_RE (any element whose text is a % and
+                whose children are not, so it tolerates icon-only children).
+
+
+-------------------------------------------------------------------------------
+6. FEATURE 2 - TOP RVOL BOARD  (content/rvol-board.js)
+-------------------------------------------------------------------------------
+A floating panel that ranks a symbol list by RVOL and floats the heaviest names
+up, styled like the "Strong Start" table (a heatmap: the top GATE_PCT% by RVOL
+get a colored background, green up / red down / amber flat, opacity scaling with
+rank). No watchlist-size limit, because it is a separate panel and never touches
+the site's own list.
+
+Rendered in a Shadow DOM (style isolation). It is:
+  - draggable (by the header), resizable (bottom-right grip), collapsible (click
+    the header). Position/size persist.
+  - pop-out (the ⧉ button) into a Document Picture-in-Picture window: one real
+    always-on-top floating window you can drag across monitors and over any app.
+    Needs Chromium 116+ (documentPictureInPicture). The docked copy hides while
+    popped out.
+  - click a row to switch the chart in your open TradingView tab (via the
+    "setTVSymbol" handler, which does NOT focus the TV tab). The clicked row then
+    LOCKS as a scroller: Up/Down arrows step the list and switch the chart, Esc
+    unlocks, clicking outside the panel unlocks.
+  - "COPY 50" copies the top 50 by RVOL as a TradingView import string (NSE:SYM,).
+
+Data: the "boardQuotes" handler returns RVOL + Chg% in one round trip. Polls 5s.
+
+Storage keys: rvolBoardSites (array of hostnames where it shows), rvolBoardTopN,
+rvolBoardSymbols (bare NSE tickers), rvolBoardUrl (a tracked TV watchlist link),
+rvolBoardTheme (auto/dark/light), rvolBoardCollapsed, rvolBoardPos, rvolBoardSize.
+
+
+-------------------------------------------------------------------------------
+7. FEATURE 3 - MARKET PULSE  (content/market-pulse.js)
+-------------------------------------------------------------------------------
+A small floating chip reading the live breadth of a loaded list into a one-glance
+posture (see section 4). Shadow DOM, draggable, click to expand, X to close.
+
+Shows:
+  - header: colored dot + posture word + a live glance ("53% up  ADV / DEC") + X.
+  - a gauge (colored bar with a needle at 0..100).
+  - an ADV/DEC graph (two lines, advancers green + decliners red, over the day).
+  - a grid: Advancing, Declining, Up >=4.5%, Down >=4.5%, Thrust, Avg move.
+
+TWO DATA PATHS, on purpose:
+  - The NUMBERS are a live snapshot. Every 5s the "pulseChange" handler returns
+    each name's Chg% from the scanner; the chip counts advancers/decliners/thrust
+    from that. These are correct the instant you turn the chip on, no history
+    needed.
+  - The GRAPH needs a time series, so it is BACKFILLED. On turn-on (and whenever
+    the list changes) the "pulseIntraday" handler pulls each name's 5-minute bars
+    for the session and counts ADV/DEC at every 5-minute step, so the line is the
+    real full-day path regardless of what time you switched on. It then extends
+    live (one point per 30s) using the same scanner counts.
+
+Session handling (why the graph is correct at 9:15 and has no overnight gap):
+  The chip plots ONE session at a time. It stores which IST date the plotted line
+  belongs to (histDate). maintainGraph() runs each tick:
+    - Pre-open: the backfill returns the PRIOR session, so the chip shows
+      yesterday's curve and does NOT append live points (histDate != today).
+    - Once inside the NSE session (09:15 to 15:40 IST, Mon to Fri) and histDate is
+      not today, it re-backfills (throttled to once per 2 minutes) to swap the
+      line to today's path, then starts appending live points. Early in the day
+      that path is short and grows left-to-right; it is only flat if the market
+      is flat.
+    - Weekends/holidays: it just shows the last session and stays put.
+  Large lists: backfill is skipped above 600 symbols (it would fire hundreds of
+  fetches); the graph then simply builds forward through the session while the
+  numbers stay live.
+
+Storage keys: pulseSites (array of hostnames), pulseSymbols, pulseUrl (tracked TV
+link), pulseExpanded, pulsePos.
+
+Note on the graph seam: the backfilled part is Yahoo data (roughly 15 minutes
+delayed, and any name Yahoo can't price is dropped), so the newest backfilled
+point can sit slightly below the first live scanner point. The numbers you read
+are always the live scanner values.
+
+
+-------------------------------------------------------------------------------
+8. BACKGROUND MESSAGE HANDLERS  (background/service-worker.js)
+-------------------------------------------------------------------------------
+Call from a content script / popup with:
+    chrome.runtime.sendMessage({ cmd, payload }) -> { ok, data } | { ok:false, error }
+
+  fetchRVOL({ symbols, lookback=20 }) -> { rvol: { "NSE:SYM": ratio, ... } }
+      RVOL per symbol. Unpriceable names are omitted.
+
+  boardQuotes({ symbols, lookback=20 }) -> { rvol, change }
+      RVOL + Chg% in one call (fetchRVOL + a change scan). Board uses this.
+
+  pulseChange({ symbols }) -> { change: { "NSE:SYM": pct, ... } }
+      Live Chg% only. Market Pulse numbers use this.
+
+  pulseIntraday({ symbols, bucketMins=5 }) -> { series:[{t,adv,dec}], sessionDate, capped? }
+      Today's (or prior session's) ADV/DEC path for the Market Pulse graph.
+      sessionDate is the IST date (YYYY-MM-DD) the bars belong to. capped=true if
+      the list exceeded 600 (no backfill done).
+
+  fetchTVWatchlist({ url }) -> { symbols: ["SYM", ...] }
+      Reads a PUBLIC/shared TradingView watchlist page and extracts its symbols
+      (bare, no NSE: prefix) by parsing the "symbols":[...] array in the page.
+      Lets the board and pulse track a link instead of a pasted list.
+
+  setTVSymbol({ symbol }) -> { switched, ... }
+      Switches the chart in the most-recently-used open TradingView tab WITHOUT
+      focusing it (so arrow-key scrolling keeps working from another window). It
+      messages tv-symbol.js ("setChartSymbol"), which types NSE:SYMBOL into TV's
+      symbol search and presses Enter.
+
+Content-script commands (not in the worker):
+  watchlist-sort.js: captureWatchlist, debugKiteSort (diagnostics).
+  tv-symbol.js:      setChartSymbol (switch the chart on this TV tab).
+
+
+-------------------------------------------------------------------------------
+9. SCREEN-AGNOSTIC MODEL  (board + pulse)
+-------------------------------------------------------------------------------
+The board and the pulse run on <all_urls> but only DRAW on sites you have turned
+on, tracked as a per-hostname list (rvolBoardSites / pulseSites). The popup's
+"Show on this site (hostname)" checkbox adds/removes the current tab's hostname;
+the widget's X button removes it (closing the widget on that site). Off everywhere
+by default. This is why you can run them on any broker, on a spare second-monitor
+tab, or pop the board out to float over anything: TV is not special.
+
+
+-------------------------------------------------------------------------------
+10. THEMING
+-------------------------------------------------------------------------------
+Both floating widgets use CSS variables with a .light / .dark class on the root.
+  - Board: rvolBoardTheme = auto | dark | light. "auto" sniffs the page's
+    background luminance (pageIsLight()).
+  - Pulse: always auto (samples the page background each tick).
+Colors are defined once as variables (--bg, --text, --up, --down, ...) with a
+.light override block, so adding a theme is a matter of new variable values.
+
+
+-------------------------------------------------------------------------------
+11. STORAGE KEYS  (chrome.storage.local)
+-------------------------------------------------------------------------------
+Sorter:   sortTV, rvolTV              (TradingView: %-change / RVOL sort; the
+          sortKite, rvolKite           popup writes them as one Off/%/RVOL pick)
+          rvolBadges                  (per-row RVOL badge, TV only)
+Board:    rvolBoardSites (array), rvolBoardTopN, rvolBoardSymbols (array),
+          rvolBoardUrl, rvolBoardTheme, rvolBoardCollapsed, rvolBoardPos,
+          rvolBoardSize
+Pulse:    pulseSites (array), pulseSymbols (array), pulseUrl, pulseExpanded,
+          pulsePos
+Cache:    rvolAvg:<NSE:SYM>:<YYYY-MM-DD>:<lookback>   (20-day avg volume, per day)
+
+
+-------------------------------------------------------------------------------
+12. LIMITATIONS / GOTCHAS
+-------------------------------------------------------------------------------
+- NSE (India) only. The board and pulse assume an "NSE:" prefix; symbols are
+  treated as NSE. The scanner helper does support US regions, but nothing here
+  wires them up.
+- TradingView sort is capped at ~32 symbols because the list is virtualized.
+- Market Pulse graph backfill is capped at 600 symbols; larger lists build the
+  line forward instead.
+- Yahoo intraday is ~15 minutes delayed and skips names it can't price; expect a
+  small seam between the backfilled and live parts of the graph.
+- Content scripts on one page SHARE a single isolated JS world. Each of ours is
+  wrapped in its own IIFE so their top-level names don't collide. If you add a
+  content script, do the same (and avoid re-declaring a global like `sleep`).
+- Document Picture-in-Picture (board pop-out) needs Chromium 116+.
+- Market closed -> last session's values; nothing updates.
+
+
+-------------------------------------------------------------------------------
+13. EXTENDING IT
+-------------------------------------------------------------------------------
+- New data column: add it to a scanner call's `columns` in service-worker.js and
+  read it back by index from row.d. Return it through a handler.
+- New floating widget: copy the shape of market-pulse.js (IIFE + Shadow DOM +
+  a per-hostname enable list + a storage-driven start/stop), register it on
+  <all_urls> in the manifest, and add its controls to the popup.
+- Different market: generalize the "NSE:" assumptions in the board/pulse and use
+  scannerRegion()/yahooSymbol() (already multi-region) throughout.
+- Tuning the posture: the thresholds live in compute() in market-pulse.js
+  (STRONG=4.5, the decision tree, and the gauge weights). All in one function.

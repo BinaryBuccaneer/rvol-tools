@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <div class="logo">RV</div>
+      <div>
+        <h1>RVOL Tools</h1>
+        <p class="sub">Live relative-volume tools for TradingView and your broker.</p>
+      </div>
+    </header>
+
+    <section>
+      <h2>Watchlist sorter</h2>
+      <p class="desc">Keeps the watchlist you're viewing sorted live, biggest first, overriding any column sort. Lists up to 50 symbols; bigger lists are left alone.</p>
+
+      <div class="siterow">
+        <span class="sitename">TradingView</span>
+        <div class="seg" id="segTV">
+          <button data-mode="off">Off</button>
+          <button data-mode="pct">% Chg</button>
+          <button data-mode="rvol">RVOL</button>
+        </div>
+      </div>
+      <div class="siterow">
+        <span class="sitename">Zerodha Kite</span>
+        <div class="seg" id="segKite">
+          <button data-mode="off">Off</button>
+          <button data-mode="pct">% Chg</button>
+          <button data-mode="rvol">RVOL</button>
+        </div>
+      </div>
+
+      <label class="switchrow">
+        <span>RVOL badge on each row<small>TradingView, next to the symbol name</small></span>
+        <input type="checkbox" id="rvolBadges" />
+        <i></i>
+      </label>
+
+      <div class="debugbar">
+        <button id="wlDebug" class="ghost">Sorter state</button>
+      </div>
+      <pre class="note out" id="wlDebugOut"></pre>
+    </section>
+
+    <section>
+      <h2>Top RVOL board</h2>
+      <p class="desc">A floating panel that ranks your list by relative volume, with no watchlist-size limit. Click a row to switch the chart in your open TradingView tab.</p>
+
+      <label class="switchrow">
+        <span id="boardHereLabel">Show on this site</span>
+        <input type="checkbox" id="boardHere" />
+        <i></i>
+      </label>
+      <p class="note" id="boardHereNote"></p>
+
+      <div class="field">
+        <label>Show top</label>
+        <input type="number" id="boardTopN" min="3" max="100" />
+      </div>
+      <div class="field">
+        <label>Theme</label>
+        <select id="boardTheme">
+          <option value="auto">Auto</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </div>
+
+      <label class="lbl">Symbols, or a TradingView watchlist link</label>
+      <textarea id="boardList" rows="4" placeholder="NSE:SUZLON, NSE:HFCL, NSE:IDEA …&#10;or  https://in.tradingview.com/watchlists/123456/"></textarea>
+      <button class="primary" id="boardLoad">Load</button>
+      <p class="note" id="boardNote"></p>
+    </section>
+
+    <section>
+      <h2>Market Pulse</h2>
+      <p class="desc">A floating chip reading the live breadth of a list: advancers vs decliners plus &ge;4.5% thrust, into a one-glance bullish / bearish posture.</p>
+
+      <label class="switchrow">
+        <span id="pulseHereLabel">Show on this site</span>
+        <input type="checkbox" id="pulseHere" />
+        <i></i>
+      </label>
+      <p class="note" id="pulseHereNote"></p>
+
+      <label class="lbl">Symbols, or a TradingView watchlist link</label>
+      <textarea id="pulseList" rows="4" placeholder="NSE:RELIANCE, NSE:TCS, NSE:INFY …&#10;or  https://in.tradingview.com/watchlists/123456/"></textarea>
+      <button class="primary" id="pulseLoad">Load</button>
+      <p class="note" id="pulseNote"></p>
+      <p class="note">Tip: a broad list (e.g. a Nifty 500 watchlist) reads the market truer than a leaders-only list.</p>
+    </section>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
