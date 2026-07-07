@@ -713,25 +713,33 @@ function paintRVOLBadges() {
     if (b.style.left !== left) b.style.left = left;
     const txt = Math.round(v * 100) + "%";
     if (b.textContent !== txt) b.textContent = txt;
-    // Color = volume AND direction, same convention as the row highlighter:
-    // green alone would scream "up" on a stock dumping on heavy volume.
-    //   heavy (>= a full average day) and up   -> green
-    //   heavy and down                          -> red
-    //   heavy but flat (|chg| < HL_MOVE)        -> amber (churn/absorption)
-    //   light volume                            -> grey, whatever the move
+    // Color = DIRECTION, brightness = VOLUME. The old version was a cliff:
+    // grey below 100% RVOL whatever the move, so a stock dumping 5% on 83%
+    // volume looked identical to a dead one at 14%. Now direction shows from
+    // half an average day upward, and the badge gets brighter the heavier
+    // the volume:
+    //   move >= +-HL_MOVE:  green up / red down
+    //     RVOL >= 150%  bright   (heavy and moving, the ones that matter)
+    //     RVOL >= 100%  normal
+    //     RVOL >=  50%  dimmed   (real participation, not a full day yet)
+    //   heavy (>= 100%) but flat -> amber (churn/absorption)
+    //   RVOL < 50%, or flat on light volume -> grey (too quiet to mean much)
+    const cell2 = pctCellOf(w);
+    const chg = cell2 ? parsePct(cell2.textContent) : null;
     let bg = "rgba(154,161,173,.16)", fg = "#b7bdc9";
-    if (v >= 1) {
-      const cell2 = pctCellOf(w);
-      const chg = cell2 ? parsePct(cell2.textContent) : null;
-      if (chg == null) {
-        bg = "rgba(154,161,173,.22)"; fg = "#d5dae3"; // heavy, direction unknown
-      } else if (chg >= HL_MOVE) {
-        bg = `rgba(${HL.green},.2)`; fg = "#43e695";
-      } else if (chg <= -HL_MOVE) {
-        bg = `rgba(${HL.red},.18)`; fg = "#ff8291";
+    if (chg != null && v >= 0.5 && Math.abs(chg) >= HL_MOVE) {
+      const rgb = chg > 0 ? HL.green : HL.red;
+      if (v >= 1.5) {
+        bg = `rgba(${rgb},.26)`; fg = chg > 0 ? "#4df09b" : "#ff8291";
+      } else if (v >= 1) {
+        bg = `rgba(${rgb},.17)`; fg = chg > 0 ? "#3bd287" : "#f0707f";
       } else {
-        bg = `rgba(${HL.amber},.16)`; fg = "#f2c14e";
+        bg = `rgba(${rgb},.1)`; fg = chg > 0 ? "#3f9e77" : "#c26872";
       }
+    } else if (v >= 1 && chg != null) {
+      bg = `rgba(${HL.amber},.16)`; fg = "#f2c14e";
+    } else if (v >= 1) {
+      bg = "rgba(154,161,173,.22)"; fg = "#d5dae3"; // heavy, direction unknown
     }
     b.style.background = bg;
     b.style.color = fg;

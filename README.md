@@ -29,13 +29,18 @@ as the session moves.
 
 **2. RVOL badge (TradingView)**
 
-A small tag next to each symbol showing its RVOL. Color reads volume and
-direction together:
+A small tag next to each symbol showing its RVOL. The color is the direction,
+the brightness is the volume:
 
-- Green: heavy volume on an up move
-- Red: heavy volume on a down move
-- Amber: heavy volume but barely moving
-- Grey: light volume, whatever the move
+- Green for a stock that's up, red for one that's down (moves of 1.5% or more)
+- The heavier the volume, the brighter the badge: 150%+ RVOL is bright,
+  around a full average day is normal, 50 to 100% is dimmed but still colored
+- Amber: at least a full average day's volume but the price is going nowhere
+  (churn, often worth a look on its own)
+- Grey: under half an average day's volume, too quiet to mean much
+
+So a stock down 5% on 80% volume shows a dim red badge instead of a blank grey
+one, while a 300% RVOL runner glows.
 
 Works on its own, no sort needs to be on.
 
