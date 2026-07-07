@@ -209,7 +209,10 @@ RVOL BADGE ON EACH ROW (paintRVOLBadges, key rvolBadges, TV-only, default off):
   the row already shows direction (TV's price colors + the sorter's left
   bar), and RVOL is time-blind (it builds all session), so a fixed threshold
   color mostly trips late in the day after the move is made. The badge is
-  pure information. Placement: just RIGHT of the
+  pure information. Theme-aware (tvBgLuma): the effective background behind
+  the rows is sampled once per paint (walk up to the first non-transparent
+  backgroundColor, compute luminance); pale steel-blue on dark rows, deep
+  steel-blue on light rows. Placement: just RIGHT of the
   symbol NAME, vertically centered, so it never overlaps the price / Chg%
   columns. The anchor is measured, not selector-based (tvBadgeAnchor): find
   the name leaf (innermost element whose text equals the ticker from

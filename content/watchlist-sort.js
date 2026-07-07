@@ -679,10 +679,29 @@ function tvBadgeAnchor(cell, wr) {
   return edge;
 }
 
+// Effective background luminance behind a row: walk up from the element to
+// the first non-transparent background color. Used to keep the badge readable
+// on BOTH TradingView themes (the dark-theme palette disappears on white).
+function tvBgLuma(el) {
+  let node = el;
+  for (let i = 0; i < 10 && node; i++) {
+    const c = getComputedStyle(node).backgroundColor || "";
+    const m = c.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s]+([\d.]+))?\s*\)/);
+    if (m && (m[4] === undefined || parseFloat(m[4]) > 0.5)) {
+      return 0.2126 * m[1] + 0.7152 * m[2] + 0.0722 * m[3];
+    }
+    node = node.parentElement;
+  }
+  return 0; // nothing found, assume dark
+}
+
 function paintRVOLBadges() {
   if (SITE !== "tradingview") return;
   const show = badgesOn && rvolMap.size > 0;
-  for (const w of tvRowWrappers()) {
+  const wraps = tvRowWrappers();
+  // One theme check per paint cycle (rows all share a background).
+  const light = wraps.length ? tvBgLuma(wraps[0]) > 140 : false;
+  for (const w of wraps) {
     let b = w.querySelector(":scope > ." + BADGE_CLASS);
     const v = rvolMap.get(tvSymbolOf(w));
     const cell = show && v != null ? w.querySelector("[data-symbol-full]") : null;
@@ -718,10 +737,10 @@ function paintRVOLBadges() {
     // direction (TV's price colors + the sorter's left bar), and a fixed
     // 100% threshold mostly trips late in the session when the move is
     // already made, so any color "signal" here just misleads. The badge is
-    // pure information; the number speaks, the reader decides. Steel blue:
-    // readable on TV's dark rows, and cool enough to imply nothing.
-    b.style.background = "rgba(125,155,195,.16)";
-    b.style.color = "#a5bcd9";
+    // pure information; the number speaks, the reader decides. Steel blue,
+    // flipped per theme: pale on dark rows, deep on light rows.
+    b.style.background = light ? "rgba(70,100,150,.12)" : "rgba(125,155,195,.16)";
+    b.style.color = light ? "#3f608f" : "#a5bcd9";
   }
 }
 

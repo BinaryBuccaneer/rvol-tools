@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RVOL Tools",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Live market tools: keep your TradingView or Kite watchlist sorted by RVOL or % change, an RVOL badge on every row, a floating Top-RVOL leaderboard, and a Market Pulse breadth chip.",
   "permissions": ["storage", "tabs"],
   "host_permissions": [
