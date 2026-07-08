@@ -67,6 +67,8 @@ chrome.storage.local.get({ rvolBadges: false }).then((s) => {
 // can no longer talk to the extension. The error branch spells that out.
 $("wlDebug").addEventListener("click", async () => {
   const out = $("wlDebugOut");
+  // Second click collapses the readout.
+  if (out.textContent) { out.textContent = ""; return; }
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab) { out.textContent = "No active tab."; return; }
   try {
