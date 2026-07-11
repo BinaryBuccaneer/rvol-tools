@@ -330,24 +330,16 @@ function kiteActiveListNo() {
   return 0;
 }
 
-// Rows that aren't sortable stocks: futures / options / commodity. Caught by
-// the data-id exchange prefix (MCX/NFO/BFO/CDS) or a FUT/CE/PE-suffixed name.
-// A list holding 2+ such rows is treated as a derivatives list and is NEVER
-// sorted, whatever its number — the safety net that protects an options list
-// even when the active-list number can't be read (and with no setup at all).
+// Derivative rows (futures / options / commodity), by the data-id exchange
+// prefix (MCX/NFO/BFO/CDS) or a FUT/CE/PE-suffixed name. Only used to skip
+// pointless RVOL lookups — the scanner/Yahoo don't know these symbols anyway.
+// Which lists get sorted is the user's call alone (the skip-lists field);
+// no auto-detection.
 function kiteRowIsDeriv(row) {
   const id = row.getAttribute("data-id") || "";
   if (/^(MCX|NFO|BFO|CDS)\b/i.test(id)) return true;
   const name = (row.querySelector(".symbol .name")?.textContent || "").trim();
   return /\b(FUT|CE|PE)$/i.test(name);
-}
-function kiteDerivHeavy(container) {
-  let n = 0;
-  for (const r of container.children) {
-    if (r.matches && r.matches(KITE_ROW) && kiteRowIsDeriv(r)) n++;
-    if (n >= 2) return true;
-  }
-  return false;
 }
 
 // Undo any sort styling on one container (row `order`s + the forced flex),
@@ -417,8 +409,8 @@ function applyKiteSort() {
   for (const container of kiteContainers()) {
     const cs = getComputedStyle(container);
     if (cs.display === "none") continue; // hidden/inactive list, leave it alone
-    if (skipActive || kiteDerivHeavy(container)) {
-      // Excluded or derivatives list: make sure it's unsorted and move on.
+    if (skipActive) {
+      // Excluded list: make sure it's unsorted and move on.
       clearKiteContainer(container);
       continue;
     }
@@ -894,7 +886,6 @@ function debugSorter() {
     kite: SITE === "kite" ? {
       activeListNo: kiteActiveListNo(),
       skipLists: [...kiteSkipLists],
-      derivListsDetected: kiteContainers().filter(kiteDerivHeavy).length,
     } : undefined,
   };
 }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RVOL Tools",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Live market tools for TradingView and Zerodha Kite: watchlist sorting by RVOL or % change, a Top-RVOL leaderboard, Market Pulse breadth chip, and Kite extras: arrow-key chart scrolling, watchlist on the right, TradingView colors, full width, and order quick-amounts.",
   "permissions": [
     "storage",
