@@ -284,8 +284,15 @@
     active.wrap.classList.remove("live");
   }
 
-  function switchTo(sym) {
-    chrome.runtime.sendMessage({ cmd: "setTVSymbol", payload: { symbol: sym } });
+  // Chart routing: a Kite chart tab first (chart-scroll.js does the switch,
+  // no focus steal), else the TradingView tab. Neither steals focus, so the
+  // board can drive a chart on the other monitor.
+  async function switchTo(sym) {
+    try {
+      const r = await chrome.runtime.sendMessage({ cmd: "setKiteSymbol", payload: { symbol: sym } });
+      if (r?.ok && r.data && r.data.switched) return;
+    } catch (_) {}
+    try { chrome.runtime.sendMessage({ cmd: "setTVSymbol", payload: { symbol: sym } }); } catch (_) {}
   }
 
   // Copy the top-N RVOL names as a TradingView import string (NSE:SYM,…).
@@ -313,6 +320,10 @@
 
   function applySelHighlight() {
     if (!active) return;
+    // Shared isolated-world flag: while the board's arrow scroller is locked,
+    // chart-scroll.js stands down so both don't fight over up/down arrows on
+    // the Kite chart page (chart-scroll's listener runs first and checks this).
+    window.__rvtBoardLock = !!selectedSym;
     active.wrap.classList.toggle("locked", !!selectedSym);
     active.body.querySelectorAll(".row").forEach((el) => el.classList.toggle("sel", el.dataset.sym === selectedSym));
   }

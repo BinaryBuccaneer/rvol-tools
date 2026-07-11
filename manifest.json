@@ -1,16 +1,20 @@
 {
   "manifest_version": 3,
   "name": "RVOL Tools",
-  "version": "1.4.8",
-  "description": "Live market tools: keep your TradingView or Kite watchlist sorted by RVOL or % change, an RVOL badge on every row, a floating Top-RVOL leaderboard, and a Market Pulse breadth chip.",
-  "permissions": ["storage", "tabs"],
+  "version": "1.5.0",
+  "description": "Live market tools for TradingView and Zerodha Kite: watchlist sorting by RVOL or % change, a Top-RVOL leaderboard, Market Pulse breadth chip, and Kite extras: arrow-key chart scrolling, watchlist on the right, TradingView colors, full width, and order quick-amounts.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
   "host_permissions": [
     "https://kite.zerodha.com/*",
     "https://in.tradingview.com/*",
     "https://www.tradingview.com/*",
     "https://scanner.tradingview.com/*",
     "https://query1.finance.yahoo.com/*",
-    "https://query2.finance.yahoo.com/*"
+    "https://query2.finance.yahoo.com/*",
+    "https://api.kite.trade/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js"
@@ -26,17 +30,27 @@
         "https://in.tradingview.com/*",
         "https://www.tradingview.com/*"
       ],
-      "js": ["content/watchlist-sort.js"],
+      "js": [
+        "content/watchlist-sort.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/rvol-board.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/rvol-board.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/market-pulse.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/market-pulse.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -44,7 +58,56 @@
         "https://in.tradingview.com/*",
         "https://www.tradingview.com/*"
       ],
-      "js": ["content/tv-symbol.js"],
+      "js": [
+        "content/tv-symbol.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.zerodha.com/*"
+      ],
+      "js": [
+        "content/chart-scroll.js"
+      ],
+      "all_frames": true,
+      "match_origin_as_fallback": true,
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://kite.zerodha.com/*"
+      ],
+      "js": [
+        "content/kite-wide.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://kite.zerodha.com/*"
+      ],
+      "js": [
+        "content/kite-mirror.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://kite.zerodha.com/*"
+      ],
+      "js": [
+        "content/kite-theme.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://kite.zerodha.com/*"
+      ],
+      "js": [
+        "content/order-amounts.js"
+      ],
       "run_at": "document_idle"
     }
   ]

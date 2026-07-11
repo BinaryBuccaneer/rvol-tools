@@ -16,6 +16,14 @@ const DEFAULTS = {
   pulseSites: [],
   pulseSymbols: [],
   pulseUrl: "",
+  // Kite extras
+  chartScroll: true,
+  kiteMirror: false,
+  kiteTvTheme: false,
+  kiteWide: false,
+  kiteWideMax: 2600,
+  orderAmountsOn: true,
+  orderAmounts: [25000, 50000, 100000],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -203,3 +211,62 @@ function bindListLoader({ textarea, button, note, symbolsKey, urlKey, state }) {
     symbolsKey: "pulseSymbols", urlKey: "pulseUrl", state: s,
   });
 })();
+
+// ---- Kite extras -----------------------------------------------------------
+// The (i) icons live inside the switch labels; stop their clicks from
+// flipping the switch underneath.
+document.querySelectorAll(".info").forEach((el) =>
+  el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }));
+
+chrome.storage.local.get(DEFAULTS).then((s) => {
+  $("csOn").checked = s.chartScroll !== false;
+  $("mirrorOn").checked = s.kiteMirror === true;
+  $("tvThemeOn").checked = s.kiteTvTheme === true;
+  $("wideOn").checked = s.kiteWide === true;
+  $("wideMax").value = Number.isFinite(+s.kiteWideMax) ? s.kiteWideMax : 2600;
+  $("amtOn").checked = s.orderAmountsOn !== false;
+  $("amts").value = (Array.isArray(s.orderAmounts) ? s.orderAmounts : DEFAULTS.orderAmounts).join(", ");
+});
+$("csOn").addEventListener("change", () => chrome.storage.local.set({ chartScroll: $("csOn").checked }));
+$("mirrorOn").addEventListener("change", () => chrome.storage.local.set({ kiteMirror: $("mirrorOn").checked }));
+$("tvThemeOn").addEventListener("change", () => chrome.storage.local.set({ kiteTvTheme: $("tvThemeOn").checked }));
+$("wideOn").addEventListener("change", () => chrome.storage.local.set({ kiteWide: $("wideOn").checked }));
+$("wideMax").addEventListener("change", () => {
+  let v = parseInt($("wideMax").value, 10);
+  if (!Number.isFinite(v) || v < 0) v = 0;
+  if (v > 0 && v < 900) v = 900; // below Kite's own width the layout would squash
+  if (v > 6000) v = 6000;
+  $("wideMax").value = v;
+  chrome.storage.local.set({ kiteWideMax: v });
+});
+$("amtOn").addEventListener("change", () => chrome.storage.local.set({ orderAmountsOn: $("amtOn").checked }));
+$("amts").addEventListener("change", () => {
+  const amounts = $("amts").value
+    .split(/[,\s]+/)
+    .map((t) => parseInt(t.replace(/[^\d]/g, ""), 10))
+    .filter((n) => Number.isFinite(n) && n >= 100);
+  if (!amounts.length) {
+    $("amts").value = DEFAULTS.orderAmounts.join(", ");
+    chrome.storage.local.set({ orderAmounts: DEFAULTS.orderAmounts });
+    return;
+  }
+  $("amts").value = amounts.join(", ");
+  chrome.storage.local.set({ orderAmounts: amounts });
+});
+
+// chart-scroll debug readout (same click-to-collapse pattern as the sorter's)
+$("csDbg").addEventListener("click", async () => {
+  const out = $("csDbgOut");
+  if (out.textContent) { out.textContent = ""; return; }
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) { out.textContent = "No active tab."; return; }
+  try {
+    const res = await chrome.tabs.sendMessage(tab.id, { cmd: "debugChartScroll" });
+    out.textContent = JSON.stringify(res && res.data ? res.data : res, null, 1);
+  } catch (_) {
+    out.textContent =
+      "The chart-scroll script is NOT running in this tab. Open kite.zerodha.com " +
+      "and refresh the tab (Cmd+Shift+R). A refresh is needed after every " +
+      "extension reload.";
+  }
+});

@@ -1,7 +1,7 @@
 RVOL Tools
 ==========
 
-Three small live-market tools in one browser extension:
+Live-market tools and Zerodha Kite upgrades in one browser extension:
 
 1. WATCHLIST SORTER keeps your TradingView and Zerodha Kite watchlist sorted
    live by RVOL or by % change, so the names moving the hardest right now float
@@ -19,6 +19,16 @@ Three small live-market tools in one browser extension:
    you load (advancers vs decliners, plus the count of names moving 4.5%+ each
    way) into a one-glance posture: RISK-ON, SELECTIVE, WAIT & WATCH, WEAK or
    RISK-OFF. Click it to expand the numbers behind the read.
+
+4. KITE EXTRAS make Zerodha Kite's web app chart like TradingView, each with
+   its own toggle: arrow-key CHART SCROLLING (down/up opens the next/previous
+   watchlist stock's chart, wrapping around; clicking a stock's row opens its
+   chart from any Kite page), WATCHLIST ON THE RIGHT (mirrors the columns,
+   chart on the left), TRADINGVIEW COLORS (TV's palette on Kite, follows
+   Kite's light/dark setting), FULL WIDTH (uses the whole window, with a cap
+   for ultrawides), and RUPEE BUTTONS in the order window (one click sets
+   Qty = amount ÷ price; amounts editable). None of these touch your orders
+   or data; they restyle the page and click what you could click yourself.
 
 RVOL = today's volume so far ÷ the average daily volume over the last 20 days,
 shown as a % (100% = a full average day already traded; 500% = five times).

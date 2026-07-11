@@ -1,7 +1,8 @@
 # RVOL Tools
 
 A browser extension that puts live relative volume (RVOL) on the screens most
-Indian retail traders actually use: TradingView and Zerodha Kite.
+Indian retail traders actually use: TradingView and Zerodha Kite. Plus a set
+of quality-of-life upgrades that make Kite's web app chart like TradingView.
 
 RVOL here means today's volume so far divided by the stock's average daily
 volume over the last 20 sessions, shown as a percentage.
@@ -53,6 +54,31 @@ A small chip that reads the breadth of a list (advancers vs decliners, plus
 how many names are moving 4.5% or more each way) and boils it down to one
 word: risk-on, selective, wait and watch, weak, or risk-off. Click it to see
 the numbers behind the word.
+
+**5. Kite extras**
+
+Quality-of-life upgrades for Zerodha Kite's web app, each with its own toggle:
+
+- **Chart scrolling** — on Kite's chart page, the down/up arrow keys open the
+  next/previous watchlist stock's chart, TradingView-style, wrapping at both
+  ends, with a gold marker on the charted row. Clicking a stock's row opens
+  its chart from any Kite page. Works with both of Kite's chart engines
+  (TradingView and ChartIQ).
+- **Watchlist on the right** — mirrors Kite's columns so the marketwatch sits
+  on the right and the chart on the left, the way TradingView lays it out.
+- **TradingView colors** — reskins Kite with TradingView's palette (TV's
+  vivid green/red, TV blue, TV surfaces). Follows Kite's own light/dark
+  setting. Candle colors come from Kite's chart settings, not this.
+- **Full width** — stretches Kite's centered fixed-width layout across the
+  whole window, with a width cap so an ultrawide doesn't push the watchlist
+  to the far edge.
+- **₹ buttons in the order window** — preset amount buttons under the
+  quantity field; one click sets Qty = amount ÷ price. Amounts are editable.
+
+None of these touch your orders, funds or data; they only restyle the page
+and click what you could click yourself. The one network call they add is to
+Zerodha's public instruments list (api.kite.trade, no login), used to build
+chart URLs.
 
 ## Install
 

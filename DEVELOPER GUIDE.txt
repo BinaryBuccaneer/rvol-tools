@@ -55,6 +55,28 @@ content/market-pulse.js     (runs on <all_urls>)
 content/tv-symbol.js        (runs on tradingview.com)
     Receives "setChartSymbol" messages and switches the TradingView chart symbol
     by typing into TV's symbol search. Used by the board's click-to-chart.
+content/chart-scroll.js     (runs on *.zerodha.com, all frames, document_start)
+  Arrow-key chart scrolling + click-a-row-to-chart on Kite. Child frames relay
+  arrow presses to the top frame (the chart iframe owns keyboard focus). Chart
+  switch: row's chart hover-button, else pushState with the instrument token
+  from the service worker's kiteToken (api.kite.trade public dump, cached per
+  day), else hard navigation. Stands down if the private Kite Tools extension
+  stamps data-kt-cs on the document (so both installed = handled once).
+content/kite-wide.js        (runs on kite.zerodha.com)
+  Full-width layout: detects Kite's centered shell structurally and stretches
+  it, with a px cap. Storage: kiteWide (default OFF), kiteWideMax.
+content/kite-mirror.js      (runs on kite.zerodha.com)
+  Watchlist on the right. Classic pages: computed fixed `left` for the
+  marketwatch column + content margin swap. Chart pages (.app.extended):
+  flex order:2 on the drawer via an injected class. Storage: kiteMirror.
+content/kite-theme.js       (runs on kite.zerodha.com, document_start)
+  TradingView palette over Kite's CSS custom properties (--color-*). Dark set
+  under [data-theme=dark], light set gated by :not(:has([data-theme=dark])),
+  both !important. Storage: kiteTvTheme.
+content/order-amounts.js    (runs on kite.zerodha.com)
+  Preset ₹ buttons in the order window; Qty = floor(amount ÷ price). Storage:
+  orderAmountsOn, orderAmounts. Injected bar class .kt-amounts is shared with
+  the private Kite Tools extension on purpose (mutual dedupe).
 
 popup/popup.html / popup.js / popup.css
     The toolbar popup: all settings. Storage-driven, so flipping a control takes

@@ -173,7 +173,65 @@ const HANDLERS = {
       return { switched: false, reason: "no-content-script", tabId: tab.id };
     }
   },
+
+  // Kite twin of setTVSymbol: switch the chart in an open Kite CHART tab
+  // without activating/focusing it. Targets the most recently viewed Kite
+  // chart tab; chart-scroll.js in its top frame does the actual switch.
+  async setKiteSymbol({ symbol }) {
+    if (!symbol) throw new Error("No symbol.");
+    const tabs = await chrome.tabs.query({ url: "https://kite.zerodha.com/markets/chart/*" });
+    if (!tabs.length) return { switched: false, reason: "no-kite-chart-tab" };
+    const tab = tabs.slice().sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+    try {
+      const res = await chrome.tabs.sendMessage(tab.id, { cmd: "openKiteSymbol", payload: { symbol } });
+      return { switched: !!(res && res.ok), tabId: tab.id, detail: res };
+    } catch (e) {
+      return { switched: false, reason: "no-content-script", tabId: tab.id };
+    }
+  },
+
+  // Resolve a tradingsymbol to Zerodha's instrument token (the last URL part
+  // of Kite's chart page: /markets/chart/web/tvc/NSE/SYMBOL/TOKEN). Source is
+  // Zerodha's PUBLIC instruments dump — api.kite.trade/instruments/<exchange>,
+  // a plain CSV, no login — parsed once and cached per exchange per day.
+  // Used by chart-scroll.js as the guaranteed way to open any stock's chart.
+  async kiteToken({ exchange = "NSE", symbol }) {
+    if (!symbol) throw new Error("No symbol given.");
+    const map = await instrumentMap(exchange);
+    const token = map[symbol.toUpperCase()];
+    if (!token) throw new Error(`No ${exchange} instrument token for ${symbol}.`);
+    return { token };
+  },
 };
+
+// --- instrument-token cache for kiteToken -----------------------------------
+const tokMem = {};
+async function instrumentMap(exchange) {
+  const exch = exchange.toUpperCase();
+  const day = new Date().toLocaleDateString("en-CA");
+  if (tokMem[exch]?.day === day) return tokMem[exch].map;
+
+  const storeKey = `kiteTokens:${exch}`;
+  const stored = (await chrome.storage.local.get(storeKey))[storeKey];
+  if (stored?.day === day && stored.map) {
+    tokMem[exch] = stored;
+    return stored.map;
+  }
+
+  const res = await fetch(`https://api.kite.trade/instruments/${exch}`, { credentials: "omit" });
+  if (!res.ok) throw new Error(`instruments dump HTTP ${res.status}`);
+  const csv = await res.text();
+  const map = {};
+  for (const line of csv.split("\n").slice(1)) {
+    const c = line.split(",");
+    if (c.length < 3 || !c[0] || !/^\d+$/.test(c[0])) continue;
+    map[c[2].toUpperCase()] = c[0];
+  }
+  if (!Object.keys(map).length) throw new Error("instruments dump parsed empty");
+  tokMem[exch] = { day, map };
+  await chrome.storage.local.set({ [storeKey]: tokMem[exch] }).catch(() => {});
+  return map;
+}
 
 // --- helpers for fetchRVOL ------------------------------------------------
 
