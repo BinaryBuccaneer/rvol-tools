@@ -62,13 +62,6 @@ for (const seg of SEGS) {
   });
 }
 
-// ---- skip Kite lists --------------------------------------------------------
-chrome.storage.local.get({ kiteSkipLists: "" }).then((s) => {
-  const box = $("skipLists");
-  box.value = s.kiteSkipLists || "";
-  box.addEventListener("change", () => chrome.storage.local.set({ kiteSkipLists: box.value.trim() }));
-});
-
 // ---- RVOL badge toggle ------------------------------------------------------
 chrome.storage.local.get({ rvolBadges: false }).then((s) => {
   const box = $("rvolBadges");

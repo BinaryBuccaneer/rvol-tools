@@ -144,7 +144,8 @@
 
     .row { padding: 5px 10px; cursor: pointer; border-top: 1px solid var(--rowline); }
     .row:hover { background: var(--hover); }
-    .row.sel { box-shadow: inset 2px 0 0 var(--accent); background: var(--selbg); }
+    .row.sel { box-shadow: inset 0 0 0 2px var(--accent); background: var(--selbg); }
+    .row.sel .c-sym.name { color: var(--accent); }
     .c-sym.name { font-size: 12px; font-weight: 600; color: var(--text); }
     .c-rv.val { font-size: 12px; font-weight: 700; }
     .c-chg.mv { font-size: 11px; }
