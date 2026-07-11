@@ -179,9 +179,15 @@ const HANDLERS = {
   // chart tab; chart-scroll.js in its top frame does the actual switch.
   async setKiteSymbol({ symbol }) {
     if (!symbol) throw new Error("No symbol.");
-    const tabs = await chrome.tabs.query({ url: "https://kite.zerodha.com/markets/chart/*" });
-    if (!tabs.length) return { switched: false, reason: "no-kite-chart-tab" };
-    const tab = tabs.slice().sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+    // Prefer an open Kite CHART tab; with none, drive the most recent Kite
+    // tab of any page — its chart-scroll opens the chart there, the same as
+    // clicking a stock's name on that page. Only when Kite isn't open at all
+    // does the caller fall back to TradingView.
+    const all = await chrome.tabs.query({ url: "https://kite.zerodha.com/*" });
+    if (!all.length) return { switched: false, reason: "no-kite-tab" };
+    const byRecent = (a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0);
+    const charts = all.filter((t) => (t.url || "").includes("/markets/chart/")).sort(byRecent);
+    const tab = charts[0] || all.slice().sort(byRecent)[0];
     try {
       const res = await chrome.tabs.sendMessage(tab.id, { cmd: "openKiteSymbol", payload: { symbol } });
       return { switched: !!(res && res.ok), tabId: tab.id, detail: res };
