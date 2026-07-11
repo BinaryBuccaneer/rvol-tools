@@ -32,7 +32,7 @@
   };
 
   let featureOn = true;
-  let AMOUNTS = [25000, 50000, 100000];
+  let AMOUNTS = [50000, 100000, 150000, 200000];
   chrome.storage?.local.get({ orderAmountsOn: true, orderAmounts: AMOUNTS }).then((s) => {
     featureOn = s.orderAmountsOn !== false;
     if (Array.isArray(s.orderAmounts) && s.orderAmounts.length) AMOUNTS = s.orderAmounts;

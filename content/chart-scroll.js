@@ -122,6 +122,11 @@
     `${ROW}.rvt-cs-sel{position:relative;box-shadow:inset 3px 0 0 #f0b429 !important}` +
     `${ROW}.rvt-cs-sel::after{content:"";position:absolute;inset:0;pointer-events:none;` +
     `z-index:9;background:rgba(240,180,41,.10);border-left:3px solid #f0b429}` +
+    // On LIGHT Kite the same gold reads washed-out on white, so the marker
+    // deepens to amber there (same :has() light gate as kite-theme.js;
+    // Kite marks only dark with data-theme).
+    `html:not([data-theme=dark]):not(:has([data-theme=dark])) ${ROW}.rvt-cs-sel{box-shadow:inset 3px 0 0 #c98a00 !important}` +
+    `html:not([data-theme=dark]):not(:has([data-theme=dark])) ${ROW}.rvt-cs-sel::after{background:rgba(201,138,0,.12);border-left-color:#c98a00}` +
     // Belt for the synthetic-hover leftovers: on the charted row, Kite's
     // hover-button cluster only shows while the row is REALLY hovered. If
     // these class names miss, the rule is a no-op (the event-based unhover

@@ -23,7 +23,7 @@ const DEFAULTS = {
   kiteWide: false,
   kiteWideMax: 2600,
   orderAmountsOn: true,
-  orderAmounts: [25000, 50000, 100000],
+  orderAmounts: [50000, 100000, 150000, 200000],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -213,10 +213,30 @@ function bindListLoader({ textarea, button, note, symbolsKey, urlKey, state }) {
 })();
 
 // ---- Kite extras -----------------------------------------------------------
-// The (i) icons live inside the switch labels; stop their clicks from
-// flipping the switch underneath.
-document.querySelectorAll(".info").forEach((el) =>
-  el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); }));
+// The (i) tooltips: ONE floating box, positioned from JS and clamped to the
+// popup, so it can never run off-screen (a CSS-anchored bubble clips at the
+// edges). Icon clicks are swallowed so they don't flip the switch under them.
+const tipbox = document.createElement("div");
+tipbox.className = "tipbox";
+document.body.appendChild(tipbox);
+document.querySelectorAll(".info").forEach((el) => {
+  el.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); });
+  el.addEventListener("mouseenter", () => {
+    tipbox.textContent = el.dataset.tip || "";
+    const w = Math.min(270, window.innerWidth - 16);
+    tipbox.style.width = w + "px";
+    tipbox.style.display = "block";
+    const r = el.getBoundingClientRect();
+    let x = r.left + r.width / 2 - w / 2;
+    x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+    tipbox.style.left = x + "px";
+    // below the icon, unless that would leave the popup: then above
+    const h = tipbox.offsetHeight;
+    const below = r.bottom + 6;
+    tipbox.style.top = (below + h > window.innerHeight - 6 ? r.top - h - 6 : below) + "px";
+  });
+  el.addEventListener("mouseleave", () => { tipbox.style.display = "none"; });
+});
 
 chrome.storage.local.get(DEFAULTS).then((s) => {
   $("csOn").checked = s.chartScroll !== false;

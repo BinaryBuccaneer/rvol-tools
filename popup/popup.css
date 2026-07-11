@@ -255,7 +255,9 @@ pre.out {
   font-size: 10.5px;
 }
 
-/* ---- info tooltips: a small (i) that reveals the full explanation ---- */
+/* ---- info tooltips: a small (i); the bubble itself is #tipbox, positioned
+   by popup.js so it can never leave the popup (a CSS-anchored bubble clips
+   at the edges, and inside .switchrow a bare <i> is the toggle knob). ---- */
 .info {
   display: inline-flex;
   align-items: center;
@@ -269,18 +271,16 @@ pre.out {
   font-weight: 700;
   font-style: normal;
   cursor: help;
-  position: relative;
   vertical-align: 1px;
 }
 .info::before { content: "i"; }
 .info:hover { color: #2bd07c; border-color: #2bd07c88; }
-.info::after {
-  content: attr(data-tip);
-  position: absolute;
-  top: 17px;
-  left: 50%;
-  transform: translateX(-55%);
-  width: 232px;
+h2 .info { vertical-align: 0; }
+
+.tipbox {
+  display: none;
+  position: fixed;
+  z-index: 100;
   background: #0c0e12;
   border: 1px solid #2a2f39;
   border-radius: 8px;
@@ -289,14 +289,6 @@ pre.out {
   font-weight: 400;
   color: #c2c7d0;
   line-height: 1.45;
-  text-transform: none;
-  letter-spacing: 0;
   text-align: left;
-  white-space: normal;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .12s;
-  z-index: 10;
+  box-shadow: 0 4px 14px rgba(0,0,0,.45);
 }
-.info:hover::after { opacity: 1; }
-h2 .info { vertical-align: 0; }
