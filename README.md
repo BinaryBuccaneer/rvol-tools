@@ -9,12 +9,14 @@ volume over the last 20 sessions, shown as a percentage.
 
 - 100% = the stock has already traded a full average day
 - 500% = five times an average day
-- A sleepy stock printing 300% by noon is exactly the kind of thing this
-  extension is built to surface
+- What you're really after is a normally quiet stock whose volume starts
+  building early, before the move is obvious. That's the whole point of
+  watching RVOL. By the time a name is printing several times its average,
+  the move has usually already happened.
 
-No accounts, no backend, no tracking. Quotes come from TradingView's public
-scanner and Yahoo Finance, straight from the browser. Settings stay in the
-browser too.
+There are no accounts to make and nothing gets sent anywhere. Quotes come from
+TradingView's public scanner and Yahoo Finance, read straight from the browser,
+and your settings stay in the browser too.
 
 ## What's inside
 
@@ -61,24 +63,24 @@ the numbers behind the word.
 
 Quality-of-life upgrades for Zerodha Kite's web app, each with its own toggle:
 
-- **Chart scrolling** — on Kite's chart page, the down/up arrow keys open the
+- **Chart scrolling:** on Kite's chart page, the down/up arrow keys open the
   next/previous watchlist stock's chart, TradingView-style, wrapping at both
   ends, with a gold marker on the charted row. Clicking a stock's row opens
   its chart from any Kite page. Works with both of Kite's chart engines
   (TradingView and ChartIQ).
-- **Watchlist on the right** — mirrors Kite's columns so the marketwatch sits
+- **Watchlist on the right:** mirrors Kite's columns so the marketwatch sits
   on the right and the chart on the left, the way TradingView lays it out.
-- **TradingView colors** — reskins Kite with TradingView's palette (TV's
+- **TradingView colors:** reskins Kite with TradingView's palette (TV's
   vivid green/red, TV blue, TV surfaces). Follows Kite's own light/dark
   setting. Candle colors come from Kite's chart settings, not this.
-- **Full width** — stretches Kite's centered fixed-width layout across the
+- **Full width:** stretches Kite's centered fixed-width layout across the
   whole window, with a width cap so an ultrawide doesn't push the watchlist
   to the far edge.
-- **₹ buttons in the order window** — preset amount buttons under the
+- **₹ buttons in the order window:** preset amount buttons under the
   quantity field; one click sets Qty = amount ÷ price. Amounts are editable.
 
-None of these touch your orders, funds or data; they only restyle the page
-and click what you could click yourself. The one network call they add is to
+None of these touch your orders, funds or data. They only restyle the page and
+click what you could click yourself. The one network call they add is to
 Zerodha's public instruments list (api.kite.trade, no login), used to build
 chart URLs.
 
