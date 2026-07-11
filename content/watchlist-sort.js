@@ -196,10 +196,13 @@ let rvolTimer = null;
 function collectSymbols() {
   const out = new Set();
   if (SITE === "kite") {
+    // Excluded list open (options/MCX): nothing to rank, don't poll for it.
+    const activeNo = kiteActiveListNo();
+    if (activeNo > 0 && kiteSkipLists.has(activeNo)) return [];
     for (const c of kiteContainers()) {
       if (getComputedStyle(c).display === "none") continue;
       for (const r of c.children) {
-        if (r.matches && r.matches(KITE_ROW)) {
+        if (r.matches && r.matches(KITE_ROW) && !kiteRowIsDeriv(r)) {
           const s = kiteSymbolOf(r);
           if (s) out.add(s);
         }
@@ -252,6 +255,113 @@ const KITE_PCT = ".change-percentage";
 let kiteObserver = null;
 let kiteTimer = null;
 
+// Marketwatch lists the sorter must LEAVE ALONE (many people keep an
+// options/futures/MCX list, and sorting that one is just confusing).
+// Editable in the popup (kiteSkipLists, e.g. "3" or "3,4"); default: none.
+let kiteSkipLists = new Set();
+function parseSkipLists(v) {
+  return new Set(
+    String(v ?? "")
+      .split(/[\s,]+/)
+      .map((x) => parseInt(x, 10))
+      .filter((n) => Number.isFinite(n) && n >= 1 && n <= 9)
+  );
+}
+
+// The numbered list tabs at the marketwatch footer, selector-free. A tab is
+// any SMALL visible element whose text is a single digit; the tab bar is the
+// parent whose direct children's digits run 1..n. Tabs are deliberately NOT
+// required to be leaf elements — the active tab can wrap its digit with an
+// underline/marker child.
+function kiteListTabs() {
+  const byParent = new Map();
+  for (const el of document.querySelectorAll("span,li,a,div,button")) {
+    if (!/^[1-9]$/.test((el.textContent || "").trim())) continue;
+    if (el.offsetWidth > 80 || el.offsetHeight > 60 || !el.offsetParent) continue;
+    const p = el.parentElement;
+    if (!p) continue;
+    if (!byParent.has(p)) byParent.set(p, []);
+    byParent.get(p).push(el);
+  }
+  let best = [];
+  for (const els of byParent.values()) {
+    if (els.length < 2 || els.length <= best.length) continue;
+    const ds = els.map((e) => parseInt(e.textContent, 10)).sort((a, b) => a - b);
+    if (ds[0] === 1 && ds.every((d, i) => d === i + 1)) best = els;
+  }
+  return best;
+}
+
+// The element inside a tab that actually holds the digit text (the styling —
+// color, weight — often sits there, not on the wrapper).
+function kiteTabTextEl(tab) {
+  let n = tab;
+  const txt = (tab.textContent || "").trim();
+  while (n.firstElementChild && (n.firstElementChild.textContent || "").trim() === txt) {
+    n = n.firstElementChild;
+  }
+  return n;
+}
+
+// Which marketwatch list is open, from the footer tabs. In order: an
+// active/selected/current class on the tab OR anything inside it, else the
+// odd-one-out by styling signature (text color + font weight + class) — the
+// active tab is the one styled unlike its siblings. 0 = couldn't tell; then
+// only the derivatives auto-skip below protects, not the numbered exclusions.
+function kiteActiveListNo() {
+  const tabs = kiteListTabs();
+  if (tabs.length < 2) return 0;
+  const act = tabs.find(
+    (t) =>
+      /active|selected|current/i.test((t.className && t.className.toString()) || "") ||
+      t.querySelector('[class*="active" i],[class*="selected" i],[class*="current" i]')
+  );
+  if (act) return parseInt(act.textContent, 10);
+  const sigs = tabs.map((t) => {
+    const cs = getComputedStyle(kiteTabTextEl(t));
+    return `${cs.color}|${cs.fontWeight}|${(t.className || "").toString()}`;
+  });
+  const counts = {};
+  for (const sg of sigs) counts[sg] = (counts[sg] || 0) + 1;
+  const rare = Object.keys(counts).filter((sg) => counts[sg] === 1);
+  if (rare.length === 1 && Object.keys(counts).length === 2) {
+    return parseInt(tabs[sigs.indexOf(rare[0])].textContent, 10);
+  }
+  return 0;
+}
+
+// Rows that aren't sortable stocks: futures / options / commodity. Caught by
+// the data-id exchange prefix (MCX/NFO/BFO/CDS) or a FUT/CE/PE-suffixed name.
+// A list holding 2+ such rows is treated as a derivatives list and is NEVER
+// sorted, whatever its number — the safety net that protects an options list
+// even when the active-list number can't be read (and with no setup at all).
+function kiteRowIsDeriv(row) {
+  const id = row.getAttribute("data-id") || "";
+  if (/^(MCX|NFO|BFO|CDS)\b/i.test(id)) return true;
+  const name = (row.querySelector(".symbol .name")?.textContent || "").trim();
+  return /\b(FUT|CE|PE)$/i.test(name);
+}
+function kiteDerivHeavy(container) {
+  let n = 0;
+  for (const r of container.children) {
+    if (r.matches && r.matches(KITE_ROW) && kiteRowIsDeriv(r)) n++;
+    if (n >= 2) return true;
+  }
+  return false;
+}
+
+// Undo any sort styling on one container (row `order`s + the forced flex),
+// so an excluded list snaps back to its manual order.
+function clearKiteContainer(container) {
+  for (const r of container.children) {
+    if (r.matches && r.matches(KITE_ROW) && r.style.order !== "") r.style.order = "";
+  }
+  if (container.style.display) {
+    container.style.removeProperty("display");
+    container.style.removeProperty("flex-direction");
+  }
+}
+
 // Robust "is on screen" test. NOT offsetParent (that's null for elements
 // inside position:fixed ancestors, which Kite's panel uses, it would wrongly
 // flag the visible list as hidden). A display:none element has no box here.
@@ -302,9 +412,16 @@ function kiteContainers() {
 //      is what revealed hidden lists and corrupted the panel.
 function applyKiteSort() {
   if (!sortEnabled || SITE !== "kite") return;
+  const activeNo = kiteActiveListNo();
+  const skipActive = activeNo > 0 && kiteSkipLists.has(activeNo);
   for (const container of kiteContainers()) {
     const cs = getComputedStyle(container);
     if (cs.display === "none") continue; // hidden/inactive list, leave it alone
+    if (skipActive || kiteDerivHeavy(container)) {
+      // Excluded or derivatives list: make sure it's unsorted and move on.
+      clearKiteContainer(container);
+      continue;
+    }
     const rows = [...container.children].filter((r) => r.matches(KITE_ROW));
     if (rows.length < 2) continue;
 
@@ -774,6 +891,11 @@ function debugSorter() {
     totalRowsInList: SITE === "tradingview" ? tvTotalRows(wraps) : document.querySelectorAll(KITE_ROW).length,
     mountedRows: SITE === "tradingview" ? wraps.length : document.querySelectorAll(KITE_ROW).length,
     rvolValuesKnown: rvolMap.size,
+    kite: SITE === "kite" ? {
+      activeListNo: kiteActiveListNo(),
+      skipLists: [...kiteSkipLists],
+      derivListsDetected: kiteContainers().filter(kiteDerivHeavy).length,
+    } : undefined,
   };
 }
 
@@ -820,11 +942,12 @@ function recompute() {
 }
 
 if (PCT_KEY && RVOL_KEY) {
-  const defaults = { [PCT_KEY]: false, [RVOL_KEY]: false };
+  const defaults = { [PCT_KEY]: false, [RVOL_KEY]: false, kiteSkipLists: "" };
   if (BADGE_KEY) defaults[BADGE_KEY] = false;
   chrome.storage.local.get(defaults).then((s) => {
     pctOn = s[PCT_KEY] === true;
     rvolOn = s[RVOL_KEY] === true;
+    if (SITE === "kite") kiteSkipLists = parseSkipLists(s.kiteSkipLists);
     badgesOn = BADGE_KEY ? s[BADGE_KEY] === true : false;
     recompute();
   });
@@ -841,6 +964,10 @@ if (PCT_KEY && RVOL_KEY) {
     if (BADGE_KEY && BADGE_KEY in c) {
       badgesOn = c[BADGE_KEY].newValue === true;
       touched = true;
+    }
+    if (SITE === "kite" && "kiteSkipLists" in c) {
+      kiteSkipLists = parseSkipLists(c.kiteSkipLists.newValue);
+      touched = true; // recompute clears a newly excluded list right away
     }
     if (touched) recompute();
   });

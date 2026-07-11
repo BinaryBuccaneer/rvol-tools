@@ -27,6 +27,9 @@ as the session moves.
 - Never edits the list itself, only reorders the rows on screen
 - Puts everything back the moment it's switched off
 - Overrides any column-header sort while running
+- Kite lists you want left in manual order can be excluded by their footer
+  number, and any list holding derivatives (futures, options, MCX) is
+  auto-detected and never sorted, with no setup
 
 **2. RVOL badge (TradingView)**
 

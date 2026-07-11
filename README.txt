@@ -7,7 +7,9 @@ Live-market tools and Zerodha Kite upgrades in one browser extension:
    live by RVOL or by % change, so the names moving the hardest right now float
    to the top. It doesn't touch your watchlist contents; it only re-orders the
    rows while a sort is on, and puts them straight back when you turn it off.
-   Plus an optional RVOL badge next to each symbol name on TradingView.
+   Plus an optional RVOL badge next to each symbol name on TradingView. Kite
+   lists you keep in manual order can be excluded by number, and a list full
+   of derivatives (futures/options/MCX) is auto-detected and never sorted.
 
 2. TOP RVOL BOARD is a floating panel that ranks a list of symbols by RVOL, with
    a Strong-Start style heatmap (heavy-volume rows light up green when up, red
